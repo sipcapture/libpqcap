@@ -23,19 +23,16 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-### Validate with the pqcap binary (recommended)
+### Testing
 
-When developing inside the [pqcap](https://github.com/sipcapture/pqcap) tree, build the reference CLI and run the integration test:
+libpqcap tests are self-contained: C unit tests, fixture embed/extract checks, and `tshark` wire-readability validation. No pqcap binary or DuckDB dependency is required.
 
 ```bash
-# from pqcap repo root
-make pqcap-cli
-cd libpqcap
 cmake --build build
-PQCAP_BIN=../dist/pqcap ctest --test-dir build -R integration_pqcap_validate --output-on-failure
+ctest --test-dir build --output-on-failure
 ```
 
-The integration test embeds real Parquet fixtures with libpqcap, checks byte-level round-trip via the footer locator, and validates queryability with `read_pqcap()` / `read_pqcap_packets()` from the pqcap binary.
+Cross-testing against the pqcap reference CLI (optional, outside this repo's CI) can be done manually in the [pqcap](https://github.com/sipcapture/pqcap) tree — libpqcap does not invoke it.
 
 ### PCAP-NG to pqcap convert (tshark)
 
@@ -46,13 +43,9 @@ Converting plain PCAP-NG to pqcap format must **retain wire readability**. The `
 3. Asserts output is indexed, prefix bytes unchanged, and Parquet extract matches
 4. Verifies `tshark`/`capinfos` still decode the same application traffic (`udp`, `http`, GET/`200`)
 5. Rejects double-convert on an already-indexed file
-6. When `PQCAP_BIN` is set, also runs `pqcap convert in.pcapng out.pqcapng` and checks eth-layer tshark decode plus `read_pqcap` / `read_pqcap_packets`
 
 ```bash
-cmake --build build
 ctest --test-dir build -R pcapng_to_pqcap_convert --output-on-failure
-# optional reference CLI path:
-PQCAP_BIN=../dist/pqcap ctest --test-dir build -R pcapng_to_pqcap_convert --output-on-failure
 ```
 
 Set `LIBPQCAP_SKIP_TSHARK=1` only to skip wire-tool checks locally when tshark is unavailable. CI installs tshark on Linux and macOS.
@@ -150,7 +143,7 @@ Develop, commit, and push from inside `libpqcap/`; bump the submodule pointer in
 
 ## Status
 
-v0.1 — footer parse/build, metadata embed/extract, PCAP-NG packet offset scan, file helpers, fixture/integration tests validated against the pqcap CLI when available. Parquet schema construction and L4 decode are out of scope; use your own Parquet writer and join with `pqcap_scan_packets` offsets.
+v0.1 — footer parse/build, metadata embed/extract, PCAP-NG packet offset scan, file helpers, and self-contained fixture/integration tests (tshark wire compatibility). Parquet schema construction and L4 decode are out of scope; use your own Parquet writer and join with `pqcap_scan_packets` offsets.
 
 ## License
 

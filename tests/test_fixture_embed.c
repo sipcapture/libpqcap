@@ -32,7 +32,7 @@ int main(void) {
   int failures = 0;
 
   failures += expect_ok("read capture",
-                        pqcap_read_file(fixture_path("minimal_capture.pcapng"), &capture,
+                        pqcap_read_file(fixture_path("udp1.pcapng"), &capture,
                                         &capture_len));
   failures += expect_ok("read minimal parquet",
                         pqcap_read_file(fixture_path("minimal_metadata.parquet"), &parquet,

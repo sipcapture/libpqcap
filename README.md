@@ -37,7 +37,22 @@ PQCAP_BIN=../dist/pqcap ctest --test-dir build -R integration_pqcap_validate --o
 
 The integration test embeds real Parquet fixtures with libpqcap, checks byte-level round-trip via the footer locator, and validates queryability with `read_pqcap()` / `read_pqcap_packets()` from the pqcap binary.
 
-Regenerate committed Parquet fixtures (optional):
+### PCAP-NG compatibility (tshark)
+
+Indexed files **must remain readable by standard packet tools**. The `pcapng_tshark_compat` test uses a real `text2pcap`-generated `udp1.pcapng` fixture and checks that:
+
+- `tshark` reads the plain capture and the embedded `.pqcapng` without errors
+- UDP packet count and protocol decode are unchanged after embed
+- The original capture byte prefix is bit-identical (packets are not rewritten)
+
+```bash
+cmake --build build
+ctest --test-dir build -R pcapng_tshark --output-on-failure
+```
+
+Set `LIBPQCAP_SKIP_TSHARK=1` only to skip wire-tool checks locally when tshark is unavailable. CI installs tshark on Linux and macOS.
+
+Regenerate committed Parquet/PCAP-NG fixtures (optional):
 
 ```bash
 bash scripts/generate_fixtures.sh

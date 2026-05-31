@@ -7,6 +7,7 @@ FIXTURES="${ROOT}/tests/fixtures"
 OUT_DIR="${LIBPQCAP_TEST_OUT:-${BUILD}/integration}"
 EMBED_CLI="${BUILD}/pqcap_embed_cli"
 PQCAP_BIN="${PQCAP_BIN:-}"
+PLAIN="${FIXTURES}/udp1.pcapng"
 
 mkdir -p "${OUT_DIR}"
 
@@ -15,15 +16,14 @@ if [[ ! -x "${EMBED_CLI}" ]]; then
   exit 1
 fi
 
+# PCAP-NG / tshark compatibility is required for format success.
+bash "${ROOT}/tests/pcapng_tshark_compat.sh"
+
 MIN_PQCAP="${OUT_DIR}/minimal.pqcapng"
 LARGE_PQCAP="${OUT_DIR}/large.pqcapng"
-MIN_EXTRACT="${OUT_DIR}/minimal.extracted.parquet"
-LARGE_EXTRACT="${OUT_DIR}/large.extracted.parquet"
 
-"${EMBED_CLI}" "${FIXTURES}/minimal_capture.pcapng" \
-  "${FIXTURES}/minimal_metadata.parquet" "${MIN_PQCAP}"
-"${EMBED_CLI}" "${FIXTURES}/minimal_capture.pcapng" \
-  "${FIXTURES}/large_metadata.parquet" "${LARGE_PQCAP}"
+"${EMBED_CLI}" "${PLAIN}" "${FIXTURES}/minimal_metadata.parquet" "${MIN_PQCAP}"
+"${EMBED_CLI}" "${PLAIN}" "${FIXTURES}/large_metadata.parquet" "${LARGE_PQCAP}"
 
 python3 - <<'PY' "${MIN_PQCAP}" "${FIXTURES}/minimal_metadata.parquet"
 import pathlib, struct, sys
@@ -57,7 +57,7 @@ fi
 
 if [[ -z "${PQCAP_BIN}" || ! -x "${PQCAP_BIN}" ]]; then
   echo "SKIP pqcap binary validation (set PQCAP_BIN to dist/pqcap)"
-  echo "PASS libpqcap integration (embed + byte-level parquet checks only)"
+  echo "PASS libpqcap integration (tshark + byte-level parquet checks)"
   exit 0
 fi
 
@@ -79,4 +79,4 @@ PACKETS="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap
   exit 1
 }
 
-echo "PASS libpqcap integration (byte checks + pqcap read_pqcap/read_pqcap_packets)"
+echo "PASS libpqcap integration (tshark + byte checks + pqcap read_pqcap/read_pqcap_packets)"

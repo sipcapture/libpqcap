@@ -36,6 +36,9 @@ target_link_libraries(test_parquet_flexibility PRIVATE pqcap)
 add_executable(test_fixture_embed tests/test_fixture_embed.c)
 target_link_libraries(test_fixture_embed PRIVATE pqcap)
 
+add_executable(test_pcapng_scan_fixture tests/test_pcapng_scan_fixture.c)
+target_link_libraries(test_pcapng_scan_fixture PRIVATE pqcap)
+
 add_executable(pqcap_embed_cli tests/pqcap_embed_cli.c)
 target_link_libraries(pqcap_embed_cli PRIVATE pqcap)
 
@@ -46,6 +49,13 @@ add_test(NAME scan COMMAND test_scan)
 add_test(NAME parquet_flexibility COMMAND test_parquet_flexibility)
 add_test(NAME fixture_embed COMMAND test_fixture_embed
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME pcapng_scan_fixture COMMAND test_pcapng_scan_fixture
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME pcapng_tshark_compat
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/pcapng_tshark_compat.sh
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(pcapng_tshark_compat PROPERTIES
+  ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
 add_test(NAME integration_pqcap_validate
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/integration_pqcap_validate.sh
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

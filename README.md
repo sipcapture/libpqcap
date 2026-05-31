@@ -39,10 +39,15 @@ The integration test embeds real Parquet fixtures with libpqcap, checks byte-lev
 
 ### PCAP-NG compatibility (tshark)
 
-Indexed files **must remain readable by standard packet tools**. The `pcapng_tshark_compat` test uses a real `text2pcap`-generated `udp1.pcapng` fixture and checks that:
+Indexed files **must remain readable by standard packet tools**. The `pcapng_tshark_compat` test uses:
+
+- `udp1.pcapng` — minimal `text2pcap` UDP packet
+- [`http.cap`](https://wiki.wireshark.org/uploads/27707187aeb30df68e70c8fb9d614981/http.cap) from the Wireshark wiki (converted to `http.pcapng`) — real HTTP request/response traffic
+
+Checks include:
 
 - `tshark` reads the plain capture and the embedded `.pqcapng` without errors
-- UDP packet count and protocol decode are unchanged after embed
+- Application-layer decode unchanged (`udp` or `http`, plus HTTP GET/`200` counts on the sample capture)
 - The original capture byte prefix is bit-identical (packets are not rewritten)
 
 ```bash

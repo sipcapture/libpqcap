@@ -22,24 +22,28 @@ static int expect_ok(const char *label, int err) {
   return 0;
 }
 
-int main(void) {
-  uint8_t *capture = NULL;
-  size_t capture_len = 0;
-  int failures = 0;
-
-  failures += expect_ok("read udp1 capture",
-                        pqcap_read_file(fixture_path("udp1.pcapng"), &capture, &capture_len));
-
+static int expect_scan_count(const char *label, const char *fixture, size_t want) {
+  uint8_t *data = NULL;
+  size_t data_len = 0;
   pqcap_packet_loc_t *locs = NULL;
   size_t count = 0;
-  failures += expect_ok("scan udp1 capture",
-                        pqcap_scan_packets(capture, capture_len, &locs, &count));
-  if (count == 0) {
-    fprintf(stderr, "expected at least one packet in udp1.pcapng\n");
+  int failures = 0;
+
+  failures += expect_ok(label, pqcap_read_file(fixture_path(fixture), &data, &data_len));
+  failures += expect_ok(label, pqcap_scan_packets(data, data_len, &locs, &count));
+  if (count != want) {
+    fprintf(stderr, "%s: expected %zu packets, got %zu\n", label, want, count);
     failures++;
   }
 
   pqcap_free(locs);
-  pqcap_free(capture);
+  pqcap_free(data);
+  return failures;
+}
+
+int main(void) {
+  int failures = 0;
+  failures += expect_scan_count("udp1.pcapng", "udp1.pcapng", 1);
+  failures += expect_scan_count("http.pcapng", "http.pcapng", 43);
   return failures == 0 ? 0 : 1;
 }

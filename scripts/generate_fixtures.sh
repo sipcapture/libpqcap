@@ -15,6 +15,19 @@ command -v text2pcap >/dev/null 2>&1 || {
   echo "text2pcap is required to regenerate PCAP-NG fixtures"
   exit 1
 }
+command -v tshark >/dev/null 2>&1 || {
+  echo "tshark is required to regenerate http.pcapng and validate fixtures"
+  exit 1
+}
+
+HTTP_CAP="${FIXTURES}/http.cap"
+HTTP_PCAPNG="${FIXTURES}/http.pcapng"
+if [[ ! -f "${HTTP_CAP}" ]]; then
+  echo "Downloading Wireshark http.cap sample..."
+  curl -fsSL -o "${HTTP_CAP}" \
+    "https://wiki.wireshark.org/uploads/27707187aeb30df68e70c8fb9d614981/http.cap"
+fi
+tshark -r "${HTTP_CAP}" -F pcapng -w "${HTTP_PCAPNG}" >/dev/null 2>&1
 
 HEX_FILE="${TMP_DIR}/udp1.hex"
 PCAPNG="${FIXTURES}/udp1.pcapng"
@@ -30,29 +43,28 @@ text2pcap "${HEX_FILE}" "${PCAPNG}" >/dev/null
 python3 - <<'PY' "${PCAPNG}" "${FIXTURES}/minimal_metadata.parquet"
 import struct, subprocess, sys, pathlib
 
-pcapng = pathlib.Path(sys.argv[1]).read_bytes()
-parquet_out = sys.argv[2]
-pos = 0
-offset = 0
-size = 0
-while pos + 12 <= len(pcapng):
-    bt, tl = struct.unpack_from("<II", pcapng, pos)
-    if tl < 12 or pos + tl > len(pcapng):
-        break
-    if bt == 0x00000006 and tl >= 32:
-        size = struct.unpack_from("<I", pcapng, pos + 20)[0]
-        offset = pos + 28
-        break
-    if bt == 0x00000003 and tl >= 16:
-        size = struct.unpack_from("<I", pcapng, pos + 8)[0]
-        offset = pos + 12
-        break
-    pos += tl
+def scan_pcapng(data: bytes):
+    locs = []
+    pos = 0
+    while pos + 12 <= len(data):
+        bt, tl = struct.unpack_from("<II", data, pos)
+        if tl < 12 or pos + tl > len(data):
+            break
+        if bt == 0x00000006 and tl >= 32:
+            size = struct.unpack_from("<I", data, pos + 20)[0]
+            locs.append((pos + 28, size))
+        elif bt == 0x00000003 and tl >= 16:
+            size = struct.unpack_from("<I", data, pos + 8)[0]
+            locs.append((pos + 12, size))
+        pos += tl
+    return locs
 
-if size <= 0:
-    raise SystemExit("no packet block found in generated pcapng")
-
-sql = f"""
+def write_minimal_parquet(pcapng_path: pathlib.Path, parquet_out: str) -> None:
+    locs = scan_pcapng(pcapng_path.read_bytes())
+    if not locs:
+        raise SystemExit(f"no packet blocks in {pcapng_path}")
+    offset, size = locs[0]
+    sql = f"""
 CREATE TABLE minimal AS
 SELECT
   CAST({offset} AS UBIGINT) AS "offset",
@@ -61,8 +73,44 @@ SELECT
   CAST(1 AS USMALLINT) AS linktype;
 COPY minimal TO '{parquet_out}' (FORMAT PARQUET);
 """
+    subprocess.check_call(["duckdb", "-unsigned", "-c", sql])
+    print(f"minimal metadata: offset={offset} size={size}")
+
+write_minimal_parquet(pathlib.Path(sys.argv[1]), sys.argv[2])
+PY
+
+python3 - <<'PY' "${HTTP_PCAPNG}" "${FIXTURES}/http_metadata.parquet"
+import struct, subprocess, sys, pathlib
+
+def scan_pcapng(data: bytes):
+    locs = []
+    pos = 0
+    while pos + 12 <= len(data):
+        bt, tl = struct.unpack_from("<II", data, pos)
+        if tl < 12 or pos + tl > len(data):
+            break
+        if bt == 0x00000006 and tl >= 32:
+            size = struct.unpack_from("<I", data, pos + 20)[0]
+            locs.append((pos + 28, size))
+        elif bt == 0x00000003 and tl >= 16:
+            size = struct.unpack_from("<I", data, pos + 8)[0]
+            locs.append((pos + 12, size))
+        pos += tl
+    return locs
+
+pcapng = pathlib.Path(sys.argv[1])
+parquet_out = sys.argv[2]
+locs = scan_pcapng(pcapng.read_bytes())
+if not locs:
+    raise SystemExit("no packets in http.pcapng")
+values = ",\n".join(f"({off}, {size}, {1000 + i}, 1)" for i, (off, size) in enumerate(locs))
+sql = f"""
+CREATE TABLE http AS
+SELECT * FROM (VALUES {values}) AS t("offset", "size", ts_ns, linktype);
+COPY http TO '{parquet_out}' (FORMAT PARQUET);
+"""
 subprocess.check_call(["duckdb", "-unsigned", "-c", sql])
-print(f"minimal metadata: offset={offset} size={size}")
+print(f"http metadata rows: {len(locs)}")
 PY
 
 duckdb -unsigned <<SQL
@@ -76,12 +124,9 @@ FROM range(2000) r(i);
 COPY large TO '${FIXTURES}/large_metadata.parquet' (FORMAT PARQUET);
 SQL
 
-if command -v tshark >/dev/null 2>&1; then
-  COUNT="$(tshark -r "${PCAPNG}" -Y udp -T fields -e frame.number | wc -l | tr -d ' ')"
-  [[ "${COUNT}" -gt 0 ]] || {
-    echo "generated pcapng is not readable by tshark"
-    exit 1
-  }
-fi
+COUNT="$(tshark -r "${PCAPNG}" -Y udp -T fields -e frame.number | wc -l | tr -d ' ')"
+[[ "${COUNT}" -gt 0 ]] || exit 1
+HTTP_FRAMES="$(tshark -r "${HTTP_PCAPNG}" -T fields -e frame.number | wc -l | tr -d ' ')"
+[[ "${HTTP_FRAMES}" -gt 0 ]] || exit 1
 
-echo "Regenerated fixtures in ${FIXTURES} (udp1.pcapng is tshark-valid PCAP-NG)"
+echo "Regenerated fixtures in ${FIXTURES}"

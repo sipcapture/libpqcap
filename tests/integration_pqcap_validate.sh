@@ -79,4 +79,19 @@ PACKETS="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap
   exit 1
 }
 
+HTTP_PQCAP="${OUT_DIR}/http.pqcapng"
+"${EMBED_CLI}" "${FIXTURES}/http.pcapng" "${FIXTURES}/http_metadata.parquet" "${HTTP_PQCAP}"
+
+HTTP_META="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap('${HTTP_PQCAP}');" | grep -E '^[0-9]+$' | tail -n 1)"
+[[ "${HTTP_META}" == "43" ]] || {
+  echo "FAIL: read_pqcap expected 43 rows for http fixture, got '${HTTP_META}'"
+  exit 1
+}
+
+HTTP_PACKETS="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap_packets('${HTTP_PQCAP}');" | grep -E '^[0-9]+$' | tail -n 1)"
+[[ "${HTTP_PACKETS}" == "43" ]] || {
+  echo "FAIL: read_pqcap_packets expected 43 packets for http fixture, got '${HTTP_PACKETS}'"
+  exit 1
+}
+
 echo "PASS libpqcap integration (tshark + byte checks + pqcap read_pqcap/read_pqcap_packets)"

@@ -42,12 +42,17 @@ int pqcap_validate_range(uint64_t file_size, const pqcap_footer_t *footer);
 int pqcap_extract_parquet(const uint8_t *data, size_t data_len,
                           const pqcap_footer_t *footer, uint8_t **out,
                           size_t *out_len);
-
 int pqcap_extract_parquet_from_buffer(const uint8_t *data, size_t data_len,
                                       uint8_t **out, size_t *out_len);
 
 int pqcap_embed(const uint8_t *capture, size_t capture_len, const uint8_t *parquet,
                 size_t parquet_len, uint8_t **out, size_t *out_len);
+
+int pqcap_read_file(const char *path, uint8_t **out, size_t *out_len);
+int pqcap_write_file(const char *path, const uint8_t *data, size_t data_len);
+
+int pqcap_embed_file(const char *capture_path, const char *parquet_path, const char *output_path);
+int pqcap_extract_parquet_file(const char *pqcap_path, const char *parquet_out_path);
 
 int pqcap_scan_packets(const uint8_t *data, size_t data_len,
                        pqcap_packet_loc_t **out, size_t *out_count);

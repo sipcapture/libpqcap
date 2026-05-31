@@ -4,12 +4,43 @@ Standalone C library for reading and writing the [pqcap](https://github.com/sipc
 
 Normative format contract: [pqcap SPEC](https://github.com/sipcapture/pqcap/blob/main/SPEC.md).
 
+## Footer locator vs Parquet payload
+
+The **44-byte footer is only a locator**, not a container for Parquet data and not a size limit on the format.
+
+| Layer | Size | Role |
+|-------|------|------|
+| Footer block (`PQCAPFTR`) | Fixed 44 bytes | Holds `metadata_parquet_offset` + `metadata_parquet_length` (uint64 each) for tail/range reads |
+| Embedded Parquet bytes | Variable (opaque) | Copied verbatim from the writer; may be as large and as feature-rich as any standalone `.parquet` file |
+
+libpqcap treats Parquet as an **opaque byte blob**: row groups, compression, optional columns, and multi-GB files are all determined by your Parquet writer, not by libpqcap. The library never parses or rewrites Parquet — it only wraps, locates, and extracts the exact bytes you provide.
+
 ## Build
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
+```
+
+### Validate with the pqcap binary (recommended)
+
+When developing inside the [pqcap](https://github.com/sipcapture/pqcap) tree, build the reference CLI and run the integration test:
+
+```bash
+# from pqcap repo root
+make pqcap-cli
+cd libpqcap
+cmake --build build
+PQCAP_BIN=../dist/pqcap ctest --test-dir build -R integration_pqcap_validate --output-on-failure
+```
+
+The integration test embeds real Parquet fixtures with libpqcap, checks byte-level round-trip via the footer locator, and validates queryability with `read_pqcap()` / `read_pqcap_packets()` from the pqcap binary.
+
+Regenerate committed Parquet fixtures (optional):
+
+```bash
+bash scripts/generate_fixtures.sh
 ```
 
 Install (optional):
@@ -61,8 +92,11 @@ int main(void) {
 | `pqcap_has_footer` / `pqcap_is_plain_capture` | Detect indexed vs plain captures |
 | `pqcap_validate_range` | Overflow-safe footer range checks |
 | `pqcap_embed` | Append metadata block + footer to a plain capture |
+| `pqcap_embed_file` | Same as `pqcap_embed`, reading/writing paths on disk |
 | `pqcap_extract_parquet` | Slice embedded Parquet bytes using a parsed footer |
+| `pqcap_extract_parquet_file` | Extract embedded Parquet to a standalone file |
 | `pqcap_extract_parquet_from_buffer` | Footer-first extract with legacy block scan fallback |
+| `pqcap_read_file` / `pqcap_write_file` | Whole-file I/O helpers |
 | `pqcap_scan_packets` | Scan PCAP-NG EPB (`0x06`) and legacy packet (`0x03`) locations |
 | `pqcap_free` | Release buffers returned by the library |
 | `pqcap_strerror` | Human-readable error strings |
@@ -95,7 +129,7 @@ Develop, commit, and push from inside `libpqcap/`; bump the submodule pointer in
 
 ## Status
 
-v0.1 — footer parse/build, metadata embed/extract, PCAP-NG packet offset scan. Parquet schema construction and L4 decode are out of scope; use your own Parquet writer and join with `pqcap_scan_packets` offsets.
+v0.1 — footer parse/build, metadata embed/extract, PCAP-NG packet offset scan, file helpers, fixture/integration tests validated against the pqcap CLI when available. Parquet schema construction and L4 decode are out of scope; use your own Parquet writer and join with `pqcap_scan_packets` offsets.
 
 ## License
 

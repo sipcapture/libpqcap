@@ -30,10 +30,27 @@ target_link_libraries(test_embed PRIVATE pqcap)
 add_executable(test_scan tests/test_scan.c)
 target_link_libraries(test_scan PRIVATE pqcap)
 
+add_executable(test_parquet_flexibility tests/test_parquet_flexibility.c)
+target_link_libraries(test_parquet_flexibility PRIVATE pqcap)
+
+add_executable(test_fixture_embed tests/test_fixture_embed.c)
+target_link_libraries(test_fixture_embed PRIVATE pqcap)
+
+add_executable(pqcap_embed_cli tests/pqcap_embed_cli.c)
+target_link_libraries(pqcap_embed_cli PRIVATE pqcap)
+
 enable_testing()
 add_test(NAME footer COMMAND test_footer)
 add_test(NAME embed COMMAND test_embed)
 add_test(NAME scan COMMAND test_scan)
+add_test(NAME parquet_flexibility COMMAND test_parquet_flexibility)
+add_test(NAME fixture_embed COMMAND test_fixture_embed
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME integration_pqcap_validate
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/integration_pqcap_validate.sh
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(integration_pqcap_validate PROPERTIES
+  ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
 
 install(TARGETS pqcap
   ARCHIVE DESTINATION lib

@@ -23,6 +23,17 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+### Examples
+
+See [`examples/README.md`](examples/README.md) for small CLI programs (`convert_pcapng`, `extract_metadata`, `scan_packets`) and a fixture smoke script:
+
+```bash
+cmake --build build
+bash examples/run_examples.sh
+# or via ctest:
+ctest --test-dir build -R examples_smoke --output-on-failure
+```
+
 ### Testing
 
 libpqcap tests are self-contained: C unit tests, fixture embed/extract checks, and `tshark` wire-readability validation. No pqcap binary or DuckDB dependency is required.

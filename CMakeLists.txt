@@ -45,6 +45,18 @@ target_link_libraries(pqcap_embed_cli PRIVATE pqcap)
 add_executable(pqcap_convert_cli tests/pqcap_convert_cli.c)
 target_link_libraries(pqcap_convert_cli PRIVATE pqcap)
 
+add_executable(convert_pcapng examples/convert_pcapng.c)
+target_link_libraries(convert_pcapng PRIVATE pqcap)
+set_target_properties(convert_pcapng PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples")
+
+add_executable(extract_metadata examples/extract_metadata.c)
+target_link_libraries(extract_metadata PRIVATE pqcap)
+set_target_properties(extract_metadata PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples")
+
+add_executable(scan_packets examples/scan_packets.c)
+target_link_libraries(scan_packets PRIVATE pqcap)
+set_target_properties(scan_packets PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples")
+
 enable_testing()
 add_test(NAME footer COMMAND test_footer)
 add_test(NAME embed COMMAND test_embed)
@@ -68,6 +80,11 @@ add_test(NAME integration_pqcap_validate
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/integration_pqcap_validate.sh
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 set_tests_properties(integration_pqcap_validate PROPERTIES
+  ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
+add_test(NAME examples_smoke
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/examples/run_examples.sh
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(examples_smoke PROPERTIES
   ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
 
 install(TARGETS pqcap

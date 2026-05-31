@@ -37,22 +37,22 @@ PQCAP_BIN=../dist/pqcap ctest --test-dir build -R integration_pqcap_validate --o
 
 The integration test embeds real Parquet fixtures with libpqcap, checks byte-level round-trip via the footer locator, and validates queryability with `read_pqcap()` / `read_pqcap_packets()` from the pqcap binary.
 
-### PCAP-NG compatibility (tshark)
+### PCAP-NG to pqcap convert (tshark)
 
-Indexed files **must remain readable by standard packet tools**. The `pcapng_tshark_compat` test uses:
+Converting plain PCAP-NG to pqcap format must **retain wire readability**. The `pcapng_to_pqcap_convert` test:
 
-- `udp1.pcapng` — minimal `text2pcap` UDP packet
-- [`http.cap`](https://wiki.wireshark.org/uploads/27707187aeb30df68e70c8fb9d614981/http.cap) from the Wireshark wiki (converted to `http.pcapng`) — real HTTP request/response traffic
-
-Checks include:
-
-- `tshark` reads the plain capture and the embedded `.pqcapng` without errors
-- Application-layer decode unchanged (`udp` or `http`, plus HTTP GET/`200` counts on the sample capture)
-- The original capture byte prefix is bit-identical (packets are not rewritten)
+1. Asserts input is a plain capture (no pqcap footer yet)
+2. Converts with `pqcap_convert_file` / `pqcap_convert_cli`
+3. Asserts output is indexed, prefix bytes unchanged, and Parquet extract matches
+4. Verifies `tshark`/`capinfos` still decode the same application traffic (`udp`, `http`, GET/`200`)
+5. Rejects double-convert on an already-indexed file
+6. When `PQCAP_BIN` is set, also runs `pqcap convert in.pcapng out.pqcapng` and checks eth-layer tshark decode plus `read_pqcap` / `read_pqcap_packets`
 
 ```bash
 cmake --build build
-ctest --test-dir build -R pcapng_tshark --output-on-failure
+ctest --test-dir build -R pcapng_to_pqcap_convert --output-on-failure
+# optional reference CLI path:
+PQCAP_BIN=../dist/pqcap ctest --test-dir build -R pcapng_to_pqcap_convert --output-on-failure
 ```
 
 Set `LIBPQCAP_SKIP_TSHARK=1` only to skip wire-tool checks locally when tshark is unavailable. CI installs tshark on Linux and macOS.
@@ -112,7 +112,8 @@ int main(void) {
 | `pqcap_has_footer` / `pqcap_is_plain_capture` | Detect indexed vs plain captures |
 | `pqcap_validate_range` | Overflow-safe footer range checks |
 | `pqcap_embed` | Append metadata block + footer to a plain capture |
-| `pqcap_embed_file` | Same as `pqcap_embed`, reading/writing paths on disk |
+| `pqcap_embed_file` | Append metadata block + footer to a plain capture (path-based) |
+| `pqcap_convert_file` | Convert plain PCAP-NG to pqcap format (alias of `pqcap_embed_file`) |
 | `pqcap_extract_parquet` | Slice embedded Parquet bytes using a parsed footer |
 | `pqcap_extract_parquet_file` | Extract embedded Parquet to a standalone file |
 | `pqcap_extract_parquet_from_buffer` | Footer-first extract with legacy block scan fallback |

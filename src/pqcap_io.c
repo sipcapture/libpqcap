@@ -110,6 +110,11 @@ done:
   return err;
 }
 
+int pqcap_convert_file(const char *capture_path, const char *parquet_path,
+                       const char *output_path) {
+  return pqcap_embed_file(capture_path, parquet_path, output_path);
+}
+
 int pqcap_extract_parquet_file(const char *pqcap_path, const char *parquet_out_path) {
   if (!pqcap_path || !parquet_out_path) {
     return PQCAP_ERR_INVALID_ARG;

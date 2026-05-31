@@ -42,6 +42,9 @@ target_link_libraries(test_pcapng_scan_fixture PRIVATE pqcap)
 add_executable(pqcap_embed_cli tests/pqcap_embed_cli.c)
 target_link_libraries(pqcap_embed_cli PRIVATE pqcap)
 
+add_executable(pqcap_convert_cli tests/pqcap_convert_cli.c)
+target_link_libraries(pqcap_convert_cli PRIVATE pqcap)
+
 enable_testing()
 add_test(NAME footer COMMAND test_footer)
 add_test(NAME embed COMMAND test_embed)
@@ -51,6 +54,11 @@ add_test(NAME fixture_embed COMMAND test_fixture_embed
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME pcapng_scan_fixture COMMAND test_pcapng_scan_fixture
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME pcapng_to_pqcap_convert
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/pcapng_to_pqcap_convert.sh
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(pcapng_to_pqcap_convert PROPERTIES
+  ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
 add_test(NAME pcapng_tshark_compat
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/pcapng_tshark_compat.sh
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

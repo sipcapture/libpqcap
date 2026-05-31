@@ -6,6 +6,7 @@ BUILD="${LIBPQCAP_BUILD_DIR:-${ROOT}/build}"
 FIXTURES="${ROOT}/tests/fixtures"
 OUT_DIR="${LIBPQCAP_TEST_OUT:-${BUILD}/integration}"
 EMBED_CLI="${BUILD}/pqcap_embed_cli"
+CONVERT_CLI="${BUILD}/pqcap_convert_cli"
 PQCAP_BIN="${PQCAP_BIN:-}"
 PLAIN="${FIXTURES}/udp1.pcapng"
 
@@ -17,13 +18,13 @@ if [[ ! -x "${EMBED_CLI}" ]]; then
 fi
 
 # PCAP-NG / tshark compatibility is required for format success.
-bash "${ROOT}/tests/pcapng_tshark_compat.sh"
+bash "${ROOT}/tests/pcapng_to_pqcap_convert.sh"
 
 MIN_PQCAP="${OUT_DIR}/minimal.pqcapng"
 LARGE_PQCAP="${OUT_DIR}/large.pqcapng"
 
-"${EMBED_CLI}" "${PLAIN}" "${FIXTURES}/minimal_metadata.parquet" "${MIN_PQCAP}"
-"${EMBED_CLI}" "${PLAIN}" "${FIXTURES}/large_metadata.parquet" "${LARGE_PQCAP}"
+"${CONVERT_CLI}" "${PLAIN}" "${FIXTURES}/minimal_metadata.parquet" "${MIN_PQCAP}"
+"${CONVERT_CLI}" "${PLAIN}" "${FIXTURES}/large_metadata.parquet" "${LARGE_PQCAP}"
 
 python3 - <<'PY' "${MIN_PQCAP}" "${FIXTURES}/minimal_metadata.parquet"
 import pathlib, struct, sys
@@ -80,7 +81,7 @@ PACKETS="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap
 }
 
 HTTP_PQCAP="${OUT_DIR}/http.pqcapng"
-"${EMBED_CLI}" "${FIXTURES}/http.pcapng" "${FIXTURES}/http_metadata.parquet" "${HTTP_PQCAP}"
+"${CONVERT_CLI}" "${FIXTURES}/http.pcapng" "${FIXTURES}/http_metadata.parquet" "${HTTP_PQCAP}"
 
 HTTP_META="$("${PQCAP_BIN}" query -c "SELECT COUNT(*)::BIGINT AS n FROM read_pqcap('${HTTP_PQCAP}');" | grep -E '^[0-9]+$' | tail -n 1)"
 [[ "${HTTP_META}" == "43" ]] || {

@@ -1,9 +1,56 @@
 #!/usr/bin/env bash
-# Shared helpers for validating libpqcap embed output with tshark.
+# Shared helpers for validating pqcap convert output with tshark.
+convert_pcapng_to_pqcap() {
+  local plain="$1"
+  local metadata="$2"
+  local converted="$3"
+
+  python3 "${ROOT}/tests/lib/pqcap_file_checks.py" assert-plain "${plain}"
+  "${CONVERT_CLI}" "${plain}" "${metadata}" "${converted}"
+  python3 "${ROOT}/tests/lib/pqcap_file_checks.py" assert-indexed "${converted}"
+}
+
+validate_converted_readability() {
+  local plain="$1"
+  local converted="$2"
+  local app_filter="$3"
+  local label="$4"
+
+  tshark_must_read "${plain}"
+  tshark_must_read "${converted}"
+
+  local plain_app converted_app
+  plain_app="$(tshark_count "${plain}" "${app_filter}")"
+  converted_app="$(tshark_count "${converted}" "${app_filter}")"
+  [[ "${plain_app}" =~ ^[0-9]+$ && "${converted_app}" =~ ^[0-9]+$ ]] || {
+    echo "FAIL: invalid ${label} packet count from tshark"
+    return 1
+  }
+  (( plain_app > 0 )) || {
+    echo "FAIL: plain ${label} capture has no decodable ${app_filter} packets"
+    return 1
+  }
+  [[ "${converted_app}" == "${plain_app}" ]] || {
+    echo "FAIL: ${label} ${app_filter} count changed after convert (plain=${plain_app}, converted=${converted_app})"
+    return 1
+  }
+
+  python3 "${ROOT}/tests/lib/pqcap_file_checks.py" assert-prefix "${plain}" "${converted}"
+
+  if command -v capinfos >/dev/null 2>&1; then
+    capinfos "${converted}" >/dev/null 2>&1 || {
+      echo "FAIL: capinfos rejected converted ${label} file"
+      return 1
+    }
+  fi
+
+  echo "PASS ${label} convert readability (${app_filter} packets=${plain_app}, prefix preserved)"
+}
+
 validate_embed_tshark() {
   local plain="$1"
   local metadata="$2"
-  local embedded="$3"
+  local converted="$3"
   local app_filter="$4"
   local label="$5"
 
@@ -16,45 +63,8 @@ validate_embed_tshark() {
     return 1
   }
 
-  tshark_must_read "${plain}"
-
-  local plain_app embed_app
-  plain_app="$(tshark_count "${plain}" "${app_filter}")"
-  [[ "${plain_app}" =~ ^[0-9]+$ ]] || {
-    echo "FAIL: invalid ${label} count on plain capture"
-    return 1
-  }
-  (( plain_app > 0 )) || {
-    echo "FAIL: plain ${label} capture has no decodable ${app_filter} packets"
-    return 1
-  }
-
-  "${EMBED_CLI}" "${plain}" "${metadata}" "${embedded}"
-
-  tshark_must_read "${embedded}"
-
-  embed_app="$(tshark_count "${embedded}" "${app_filter}")"
-  [[ "${embed_app}" == "${plain_app}" ]] || {
-    echo "FAIL: ${label} ${app_filter} packet count changed after embed (plain=${plain_app}, embedded=${embed_app})"
-    return 1
-  }
-
-  python3 - <<'PY' "${plain}" "${embedded}"
-import pathlib, sys
-plain = pathlib.Path(sys.argv[1]).read_bytes()
-embedded = pathlib.Path(sys.argv[2]).read_bytes()
-if embedded[: len(plain)] != plain:
-    raise SystemExit("capture prefix bytes changed after embed")
-PY
-
-  if command -v capinfos >/dev/null 2>&1; then
-    capinfos "${embedded}" >/dev/null 2>&1 || {
-      echo "FAIL: capinfos rejected embedded ${label} file"
-      return 1
-    }
-  fi
-
-  echo "PASS ${label} tshark (${app_filter} packets=${plain_app}, prefix preserved)"
+  convert_pcapng_to_pqcap "${plain}" "${metadata}" "${converted}"
+  validate_converted_readability "${plain}" "${converted}" "${app_filter}" "${label}"
 }
 
 tshark_count() {

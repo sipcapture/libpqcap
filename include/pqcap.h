@@ -52,6 +52,8 @@ int pqcap_read_file(const char *path, uint8_t **out, size_t *out_len);
 int pqcap_write_file(const char *path, const uint8_t *data, size_t data_len);
 
 int pqcap_embed_file(const char *capture_path, const char *parquet_path, const char *output_path);
+int pqcap_convert_file(const char *capture_path, const char *parquet_path,
+                       const char *output_path);
 int pqcap_extract_parquet_file(const char *pqcap_path, const char *parquet_out_path);
 
 int pqcap_scan_packets(const uint8_t *data, size_t data_len,

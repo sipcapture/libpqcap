@@ -87,6 +87,10 @@ add_test(NAME examples_smoke
 set_tests_properties(examples_smoke PROPERTIES
   ENVIRONMENT "LIBPQCAP_BUILD_DIR=${CMAKE_BINARY_DIR}")
 
+add_test(NAME workflow_permissions
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/workflow_permissions.sh
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 install(TARGETS pqcap
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
